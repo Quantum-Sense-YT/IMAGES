@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grille blanche – ajouter une grille sur une image</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%96%A6%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #d2d2d7;
+    --accent: #0071e3;
+    --accent-text: #ffffff;
+    --danger: #c9302c;
+    --stage: #2b2b30;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --panel: #2c2c2e;
+      --text: #f5f5f7;
+      --muted: #a1a1a6;
+      --border: #48484a;
+      --accent: #0a84ff;
+      --danger: #ff6961;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  header, main, footer { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 20px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  @media (max-width: 780px) {
+    main { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .stage {
+    position: relative;
+    height: min(72vh, 680px);
+    min-height: 280px;
+    background: var(--stage);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stage canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: none;
+    padding: 12px;
+  }
+  .stage.has-image canvas { display: block; }
+  .stage.has-image .empty { display: none; }
+  .stage.dragging { outline: 3px dashed var(--accent); outline-offset: -8px; }
+
+  .empty {
+    background: none;
+    border: 0;
+    color: #d8d8dc;
+    text-align: center;
+    cursor: pointer;
+    font: inherit;
+    padding: 24px;
+  }
+  .empty .icon { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+  .empty strong { display: block; font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .empty span { color: #a8a8ae; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-self: start;
+  }
+  .panel hr { border: 0; border-top: 1px solid var(--border); margin: 0; width: 100%; }
+
+  button.btn {
+    font: inherit;
+    font-weight: 600;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--accent); }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible + label, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .fileinfo { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .fileinfo b { color: var(--text); font-weight: 500; }
+
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .row output { color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin: 4px 0 0; accent-color: var(--accent); }
+  .control { display: block; }
+
+  .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { flex: 1; text-align: center; padding: 7px 0; cursor: pointer; }
+  .seg input:checked + label { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .seglabel { margin-bottom: 6px; display: block; }
+
+  .offsets { display: flex; flex-direction: column; gap: 14px; padding-left: 24px; }
+  .offsets[hidden] { display: none; }
+
+  .btnrow { display: flex; gap: 8px; }
+  .btnrow .btn { flex: 1; }
+  .nav { display: flex; align-items: center; gap: 8px; }
+  .nav[hidden] { display: none; }
+  .nav span { flex: 1; text-align: center; font-size: 13px; }
+  button.btn.small { width: auto; padding: 6px 14px; }
+  progress { width: 100%; height: 8px; accent-color: var(--accent); }
+
+  #status { margin: 0; font-size: 13px; color: var(--muted); min-height: 1.2em; }
+  #status.error { color: var(--danger); }
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+
+  footer { padding-bottom: 28px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Grille blanche</h1>
+  <p>Ajoutez une grille blanche sur une image, puis exportez-la. Rien n’est envoyé sur internet : tout se passe dans votre navigateur.</p>
+</header>
+
+<main>
+  <section class="stage" id="stage" aria-label="Aperçu">
+    <canvas id="preview" aria-label="Aperçu de l’image avec la grille"></canvas>
+    <button class="empty" id="empty" type="button">
+      <div class="icon" aria-hidden="true">▦</div>
+      <strong>Glissez des images ou un dossier ici</strong>
+      <span>ou cliquez pour en choisir (vous pouvez aussi coller une image avec Ctrl/⌘ + V)</span>
+    </button>
+  </section>
+
+  <aside class="panel" aria-label="Réglages">
+    <div class="btnrow">
+      <button class="btn" id="choose" type="button">Choisir des images…</button>
+      <button class="btn" id="chooseDir" type="button">Un dossier…</button>
+    </div>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+    <input type="file" id="dir" webkitdirectory hidden>
+    <div class="fileinfo" id="fileinfo" hidden></div>
+    <div class="nav" id="nav" hidden>
+      <button class="btn small" id="prev" type="button" aria-label="Image précédente">‹</button>
+      <span id="navText">Aperçu 1 / 1</span>
+      <button class="btn small" id="next" type="button" aria-label="Image suivante">›</button>
+    </div>
+    <p class="note" id="batchNote" hidden>Les réglages s’appliquent à toutes les images ; l’épaisseur s’adapte à la taille de chacune.</p>
+
+    <hr>
+
+    <label class="control" for="cols">
+      <span class="row"><span>Colonnes</span><output id="colsOut">18</output></span>
+      <input type="range" id="cols" min="1" max="60" step="1" value="18">
+    </label>
+    <label class="control" for="rows">
+      <span class="row"><span>Rangées</span><output id="rowsOut">9</output></span>
+      <input type="range" id="rows" min="1" max="60" step="1" value="9">
+    </label>
+    <label class="control" for="thick">
+      <span class="row"><span>Épaisseur</span><output id="thickOut">4 px</output></span>
+      <input type="range" id="thick" min="1" max="40" step="1" value="4">
+    </label>
+    <label class="control" for="opacity">
+      <span class="row"><span>Opacité</span><output id="opacityOut">100 %</output></span>
+      <input type="range" id="opacity" min="0" max="100" step="1" value="100">
+    </label>
+    <label class="check" for="outer">
+      <input type="checkbox" id="outer"> Bordure extérieure
+    </label>
+    <label class="check" for="double">
+      <input type="checkbox" id="double"> Doubler la grille (2 grilles décalées)
+    </label>
+    <div class="offsets" id="offsets" hidden>
+      <label class="control" for="dx">
+        <span class="row"><span>Décalage horizontal</span><output id="dxOut">50 %</output></span>
+        <input type="range" id="dx" min="0" max="100" step="1" value="50">
+      </label>
+      <label class="control" for="dy">
+        <span class="row"><span>Décalage vertical</span><output id="dyOut">50 %</output></span>
+        <input type="range" id="dy" min="0" max="100" step="1" value="50">
+      </label>
+    </div>
+
+    <hr>
+
+    <div>
+      <span class="seglabel" id="fmtLabel">Format d’export</span>
+      <div class="seg" role="radiogroup" aria-labelledby="fmtLabel">
+        <input type="radio" name="fmt" id="fmtPng" value="png" checked><label for="fmtPng">PNG</label>
+        <input type="radio" name="fmt" id="fmtJpeg" value="jpeg"><label for="fmtJpeg">JPEG</label>
+      </div>
+    </div>
+
+    <button class="btn primary" id="export" type="button" disabled>Exporter…</button>
+    <progress id="progress" max="1" value="0" hidden></progress>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p class="note" id="pickerNote" hidden></p>
+  </aside>
+</main>
+
+<footer>
+  L’épaisseur est exprimée en pixels de la première image ; elle s’adapte à la taille des autres. L’export garde la résolution d’origine.
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  // ==CORE-START==
+  // Référence : grille 18 × 9, lignes de 4 px pour une image de 1920 px de large.
+  const REF_WIDTH = 1920;
+  const REF_THICKNESS = 4;
+
+  function defaultThickness(width) {
+    return Math.max(1, Math.round(width * REF_THICKNESS / REF_WIDTH));
+  }
+
+  // Épaisseur de ligne sur le canvas : proportionnelle à la largeur d’origine ;
+  // arrondie au pixel entier pour l’export (aligned = true).
+  function lineThickness(thickness, scale, aligned) {
+    const t = thickness * scale;
+    return aligned ? Math.max(1, Math.round(t)) : Math.max(0.5, t);
+  }
+
+  // Dessine la grille blanche. Toutes les lignes forment un seul tracé :
+  // les croisements ne sont pas dessinés deux fois, même avec une opacité < 100 %.
+  // Avec o.double, une seconde grille identique est ajoutée, décalée de o.dx / o.dy
+  // (en fraction d’une cellule, de 0 à 1). Elle n’a jamais de bordure extérieure.
+  function drawGrid(ctx, W, H, o) {
+    const cols = Math.max(1, o.cols);
+    const rows = Math.max(1, o.rows);
+    const t = o.t;
+    ctx.save();
+    ctx.globalAlpha = o.opacity;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+
+    const firstC = o.outer ? 0 : 1;
+    const lastC  = o.outer ? cols : cols - 1;
+    for (let i = firstC; i <= lastC; i++) {
+      let x = W * i / cols - t / 2;
+      if (i === 0) x = 0;
+      if (i === cols) x = W - t;
+      if (o.aligned) x = Math.round(x);
+      ctx.rect(x, 0, t, H);
+    }
+
+    const firstR = o.outer ? 0 : 1;
+    const lastR  = o.outer ? rows : rows - 1;
+    for (let j = firstR; j <= lastR; j++) {
+      let y = H * j / rows - t / 2;
+      if (j === 0) y = 0;
+      if (j === rows) y = H - t;
+      if (o.aligned) y = Math.round(y);
+      ctx.rect(0, y, W, t);
+    }
+
+    if (o.double) {
+      const dx = Math.min(1, Math.max(0, o.dx || 0));
+      const dy = Math.min(1, Math.max(0, o.dy || 0));
+      for (let i = 0; i <= cols; i++) {
+        const cx = W * (i + dx) / cols;
+        if (cx <= 0 || cx >= W) continue;       // pas de ligne sur le bord de l’image
+        let x = cx - t / 2;
+        if (o.aligned) x = Math.round(x);
+        ctx.rect(x, 0, t, H);
+      }
+      for (let j = 0; j <= rows; j++) {
+        const cy = H * (j + dy) / rows;
+        if (cy <= 0 || cy >= H) continue;
+        let y = cy - t / 2;
+        if (o.aligned) y = Math.round(y);
+        ctx.rect(0, y, W, t);
+      }
+    }
+
+    ctx.fill();
+    ctx.restore();
+  }
+  // ==CORE-END==
+
+  // ==FILES-START==
+  const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|avif|tiff?|heic|heif)$/i;
+
+  function isImageFile(f) {
+    return /^image\//.test(f.type) || IMG_EXT.test(f.name);
+  }
+
+  // Tri par nom, « image2 » avant « image10 ».
+  function sortByName(files) {
+    return files.slice().sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  }
+
+  function baseName(name) {
+    return (name || 'image').replace(/\.[^.]+$/, '') || 'image';
+  }
+
+  function entryToFile(entry) {
+    return new Promise((resolve, reject) => entry.file(resolve, reject));
+  }
+
+  // Fichiers d’un dossier déposé (sans les sous-dossiers).
+  function readDirectoryFiles(dirEntry) {
+    return new Promise((resolve) => {
+      const reader = dirEntry.createReader();
+      const files = [];
+      const next = () => {
+        reader.readEntries(async (batch) => {
+          if (!batch.length) { resolve(files); return; }
+          for (const e of batch) {
+            if (e.isFile) {
+              try { files.push(await entryToFile(e)); } catch (err) { /* ignoré */ }
+            }
+          }
+          next();
+        }, () => resolve(files));
+      };
+      next();
+    });
+  }
+
+  // À appeler directement depuis l’événement « drop » : la liste d’éléments déposés
+  // n’est lisible que de façon synchrone, avant le premier « await ».
+  async function filesFromDrop(dt) {
+    const fallback = Array.from((dt && dt.files) || []);
+    const items = Array.from((dt && dt.items) || []);
+    const entries = items
+      .filter((it) => it.kind === 'file')
+      .map((it) => (typeof it.webkitGetAsEntry === 'function' ? it.webkitGetAsEntry() : null));
+    if (!entries.length || entries.some((e) => !e)) return fallback;
+
+    const out = [];
+    for (const entry of entries) {
+      if (entry.isFile) {
+        try { out.push(await entryToFile(entry)); } catch (err) { /* ignoré */ }
+      } else if (entry.isDirectory) {
+        const inside = await readDirectoryFiles(entry);
+        for (const f of inside) out.push(f);
+      }
+    }
+    return out;
+  }
+
+  // Noms de sortie : « nom_grille.png », puis « nom_grille 2.png »… (aucun écrasement).
+  function uniqueName(base, ext, used) {
+    let name = base + '_grille.' + ext;
+    let n = 2;
+    while (used.has(name.toLowerCase())) {
+      name = base + '_grille ' + n + '.' + ext;
+      n++;
+    }
+    used.add(name.toLowerCase());
+    return name;
+  }
+
+  async function existsInDir(dir, name) {
+    try {
+      await dir.getFileHandle(name);
+      return true;
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') return false;
+      if (e && e.name === 'TypeMismatchError') return true;   // un dossier porte ce nom
+      throw e;
+    }
+  }
+
+  async function uniqueNameInDir(dir, base, ext, used) {
+    let name = base + '_grille.' + ext;
+    let n = 2;
+    while (used.has(name.toLowerCase()) || await existsInDir(dir, name)) {
+      name = base + '_grille ' + n + '.' + ext;
+      n++;
+    }
+    used.add(name.toLowerCase());
+    return name;
+  }
+  // ==FILES-END==
+
+  // ==ZIP-START==
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function dosDateTime(d) {
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    return { time: time & 0xFFFF, date: date & 0xFFFF };
+  }
+
+  // Archive ZIP sans compression (les PNG et JPEG sont déjà compressés).
+  // entries : [{ name: string, data: Uint8Array }]
+  function buildZip(entries) {
+    const enc = new TextEncoder();
+    const stamp = dosDateTime(new Date());
+    const parts = [];
+    const central = [];
+    let offset = 0;
+    let centralSize = 0;
+
+    for (const e of entries) {
+      const name = enc.encode(e.name);
+      const crc = crc32(e.data);
+      const size = e.data.length;
+
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);          // version nécessaire
+      lh.setUint16(6, 0x0800, true);      // noms de fichiers en UTF-8
+      lh.setUint16(8, 0, true);           // méthode : stockage
+      lh.setUint16(10, stamp.time, true);
+      lh.setUint16(12, stamp.date, true);
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, size, true);
+      lh.setUint32(22, size, true);
+      lh.setUint16(26, name.length, true);
+      lh.setUint16(28, 0, true);
+      parts.push(lh.buffer, name, e.data);
+
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true);
+      ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true);
+      ch.setUint16(12, stamp.time, true);
+      ch.setUint16(14, stamp.date, true);
+      ch.setUint32(16, crc, true);
+      ch.setUint32(20, size, true);
+      ch.setUint32(24, size, true);
+      ch.setUint16(28, name.length, true);
+      ch.setUint16(30, 0, true);
+      ch.setUint16(32, 0, true);
+      ch.setUint16(34, 0, true);
+      ch.setUint16(36, 0, true);
+      ch.setUint32(38, 0, true);
+      ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+
+      offset += 30 + name.length + size;
+      centralSize += 46 + name.length;
+    }
+
+    if (entries.length > 0xFFFF || offset + centralSize + 22 > 0xFFFFFFFF) {
+      throw new Error('zip-trop-gros');
+    }
+
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(4, 0, true);
+    end.setUint16(6, 0, true);
+    end.setUint16(8, entries.length, true);
+    end.setUint16(10, entries.length, true);
+    end.setUint32(12, centralSize, true);
+    end.setUint32(16, offset, true);
+    end.setUint16(20, 0, true);
+
+    return new Blob(parts.concat(central, [end.buffer]), { type: 'application/zip' });
+  }
+  // ==ZIP-END==
+
+  // ---------- Éléments de l’interface ----------
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), preview = $('preview'), emptyBtn = $('empty');
+  const fileInput = $('file'), dirInput = $('dir');
+  const chooseBtn = $('choose'), chooseDirBtn = $('chooseDir'), exportBtn = $('export');
+  const prevBtn = $('prev'), nextBtn = $('next'), navEl = $('nav'), navText = $('navText');
+  const batchNote = $('batchNote'), progressEl = $('progress');
+  const fileinfo = $('fileinfo'), statusEl = $('status'), pickerNote = $('pickerNote');
+  const colsEl = $('cols'), rowsEl = $('rows'), thickEl = $('thick');
+  const opacityEl = $('opacity'), outerEl = $('outer');
+  const doubleEl = $('double'), dxEl = $('dx'), dyEl = $('dy'), offsetsEl = $('offsets');
+
+  const PREVIEW_MAX = 1600;
+  const canPick = typeof window.showSaveFilePicker === 'function';
+  const canPickDir = typeof window.showDirectoryPicker === 'function';
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  const state = {
+    files: [],          // images sélectionnées, triées par nom
+    index: 0,           // image affichée dans l’aperçu
+    base: null,         // version réduite de l’image affichée
+    fullW: 0,           // dimensions de l’image affichée
+    fullH: 0,
+    refWidth: 0,        // largeur de la première image : référence de l’épaisseur
+    navToken: 0,
+    busy: false
+  };
+
+  (function writePickerNote() {
+    const parts = [
+      canPick
+        ? 'Une image : vous choisissez le dossier et le nom du fichier.'
+        : 'Une image : enregistrée dans le dossier de téléchargements.',
+      canPickDir
+        ? 'Plusieurs images : vous choisissez le dossier de destination.'
+        : 'Plusieurs images : regroupées dans un fichier ZIP téléchargé.'
+    ];
+    if (!canPick || !canPickDir) {
+      parts.push('Chrome, Edge et Opera permettent de choisir l’emplacement.');
+    }
+    pickerNote.textContent = parts.join(' ');
+    pickerNote.hidden = false;
+  })();
+
+  // ---------- Messages ----------
+  function setStatus(msg, isError) {
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('error', !!isError);
+  }
+
+  function reportError(e) {
+    const m = e && e.message;
+    if (m === 'taille') {
+      setStatus('Cette image est trop grande pour ce navigateur. Essayez sur ordinateur avec Chrome ou Edge, ou avec une image plus petite.', true);
+    } else if (m === 'zip-trop-gros') {
+      setStatus('Le lot est trop volumineux pour un seul fichier ZIP (4 Go maximum). Exportez-le en plusieurs fois.', true);
+    } else if (m === 'lecture') {
+      setStatus('Cette image n’a pas pu être relue pour l’export.', true);
+    } else {
+      setStatus('L’export a échoué : ' + (m ? m : 'erreur inconnue'), true);
+    }
+  }
+
+  // ---------- Réglages ----------
+  function settings() {
+    return {
+      cols: parseInt(colsEl.value, 10),
+      rows: parseInt(rowsEl.value, 10),
+      thickness: parseInt(thickEl.value, 10),
+      opacity: parseInt(opacityEl.value, 10) / 100,
+      outer: outerEl.checked,
+      double: doubleEl.checked,
+      dx: parseInt(dxEl.value, 10) / 100,
+      dy: parseInt(dyEl.value, 10) / 100
+    };
+  }
+  function gridOptions(s, t, aligned) {
+    return {
+      cols: s.cols, rows: s.rows, t: t, opacity: s.opacity, outer: s.outer, aligned: aligned,
+      double: s.double, dx: s.dx, dy: s.dy
+    };
+  }
+  function currentFormat() {
+    return $('fmtJpeg').checked ? 'jpeg' : 'png';
+  }
+  function syncOutputs() {
+    $('colsOut').textContent = colsEl.value;
+    $('rowsOut').textContent = rowsEl.value;
+    $('thickOut').textContent = thickEl.value + ' px';
+    $('opacityOut').textContent = opacityEl.value + ' %';
+    $('dxOut').textContent = dxEl.value + ' %';
+    $('dyOut').textContent = dyEl.value + ' %';
+  }
+
+  // ---------- Aperçu ----------
+  function renderPreview() {
+    if (!state.base) return;
+    const bw = state.base.width, bh = state.base.height;
+    if (preview.width !== bw || preview.height !== bh) {
+      preview.width = bw;
+      preview.height = bh;
+    }
+    const ctx = preview.getContext('2d');
+    ctx.clearRect(0, 0, bw, bh);
+    ctx.drawImage(state.base, 0, 0);
+    const s = settings();
+    const scale = bw / state.refWidth;
+    drawGrid(ctx, bw, bh, gridOptions(s, lineThickness(s.thickness, scale, false), false));
+  }
+
+  function updateInfo() {
+    const file = state.files[state.index];
+    const n = state.files.length;
+    fileinfo.textContent = '';
+    const nameB = document.createElement('b');
+    nameB.textContent = file ? file.name : 'image';
+    fileinfo.append(nameB, document.createElement('br'), state.fullW + ' × ' + state.fullH + ' px');
+    fileinfo.hidden = false;
+
+    navEl.hidden = n < 2;
+    batchNote.hidden = n < 2;
+    navText.textContent = 'Aperçu ' + (state.index + 1) + ' / ' + n;
+    prevBtn.disabled = state.busy || state.index <= 0;
+    nextBtn.disabled = state.busy || state.index >= n - 1;
+    exportBtn.textContent = n > 1 ? 'Exporter les ' + n + ' images…' : 'Exporter…';
+  }
+
+  // ---------- Chargement des images ----------
+  async function decodeFile(file) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    try {
+      await img.decode();
+    } catch (e) {
+      URL.revokeObjectURL(url);
+      return null;
+    }
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) {
+      URL.revokeObjectURL(url);
+      return null;
+    }
+    return { img: img, url: url, w: w, h: h };
+  }
+
+  // Affiche une image décodée dans l’aperçu (version réduite, pour des réglages fluides).
+  function applyDecoded(d, index) {
+    state.fullW = d.w;
+    state.fullH = d.h;
+    state.index = index;
+
+    const k = Math.min(1, PREVIEW_MAX / Math.max(d.w, d.h));
+    const base = document.createElement('canvas');
+    base.width = Math.max(1, Math.round(d.w * k));
+    base.height = Math.max(1, Math.round(d.h * k));
+    const bctx = base.getContext('2d');
+    bctx.imageSmoothingQuality = 'high';
+    bctx.drawImage(d.img, 0, 0, base.width, base.height);
+    state.base = base;
+    URL.revokeObjectURL(d.url);
+
+    updateInfo();
+    renderPreview();
+  }
+
+  async function loadFiles(list) {
+    if (state.busy) return;
+    const all = Array.from(list || []);
+    let files = sortByName(all.filter(isImageFile));
+    if (!files.length) {
+      setStatus(all.length > 1 ? 'Aucune image dans cette sélection.' : 'Ce fichier n’est pas une image.', true);
+      return;
+    }
+
+    // La première image lisible sert de référence ; les fichiers illisibles sont écartés.
+    let d = null;
+    while (files.length) {
+      d = await decodeFile(files[0]);
+      if (d) break;
+      files = files.slice(1);
+    }
+    if (!d) {
+      setStatus(all.length > 1
+        ? 'Aucune image lisible dans cette sélection.'
+        : 'Ce format d’image n’est pas pris en charge par votre navigateur.', true);
+      return;
+    }
+
+    state.files = files;
+    state.refWidth = d.w;
+
+    // Épaisseur par défaut proportionnelle à la référence.
+    const def = defaultThickness(d.w);
+    thickEl.max = String(Math.max(40, def * 3));
+    thickEl.value = String(def);
+    syncOutputs();
+
+    applyDecoded(d, 0);
+    stage.classList.add('has-image');
+    exportBtn.disabled = false;
+    setStatus('');
+  }
+
+  async function navigate(delta) {
+    if (state.busy) return;
+    const i = state.index + delta;
+    if (i < 0 || i >= state.files.length) return;
+    const token = ++state.navToken;
+    const d = await decodeFile(state.files[i]);
+    if (token !== state.navToken) {           // un clic plus récent a pris le relais
+      if (d) URL.revokeObjectURL(d.url);
+      return;
+    }
+    if (!d) {
+      setStatus('« ' + state.files[i].name + ' » n’a pas pu être ouverte.', true);
+      return;
+    }
+    setStatus('');
+    applyDecoded(d, i);
+  }
+
+  // ---------- Export ----------
+  function setBusy(busy, total) {
+    state.busy = busy;
+    exportBtn.disabled = busy || !state.files.length;
+    chooseBtn.disabled = busy;
+    chooseDirBtn.disabled = busy;
+    if (state.files.length) updateInfo();     // remet à jour les boutons précédent / suivant
+    if (busy && total > 1) {
+      progressEl.max = total;
+      progressEl.value = 0;
+      progressEl.hidden = false;
+    } else {
+      progressEl.hidden = true;
+    }
+  }
+
+  // Dessine l’image et la grille à la résolution d’origine ; snap = réglages figés au clic.
+  async function renderBlob(img, W, H, fmt, mime, snap) {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d', { alpha: fmt !== 'jpeg' });
+    if (!ctx) throw new Error('taille');
+    if (fmt === 'jpeg') {              // le JPEG n’a pas de transparence : fond blanc
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, W, H);
+    const s = snap.s;
+    drawGrid(ctx, W, H, gridOptions(s, lineThickness(s.thickness, W / snap.ref, true), true));
+    const blob = await new Promise((resolve) => c.toBlob(resolve, mime, 0.95));
+    c.width = 0;                       // libère la mémoire du canvas
+    c.height = 0;
+    if (!blob) throw new Error('taille');
+    return blob;
+  }
+
+  async function exportOne(file, fmt, mime, snap) {
+    const d = await decodeFile(file);
+    if (!d) throw new Error('lecture');
+    try {
+      return await renderBlob(d.img, d.w, d.h, fmt, mime, snap);
+    } finally {
+      URL.revokeObjectURL(d.url);
+    }
+  }
+
+  function downloadBlob(blob, name) {
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 10000);
+  }
+
+  // Une seule image : fenêtre « Enregistrer sous » (ou téléchargement classique).
+  async function exportSingle(file, fmt, mime, ext, snap) {
+    const suggested = baseName(file.name) + '_grille.' + ext;
+
+    // La fenêtre « Enregistrer sous » doit s’ouvrir tout de suite après le clic.
+    let handle = null;
+    if (canPick) {
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: suggested,
+          types: [{
+            description: fmt === 'png' ? 'Image PNG' : 'Image JPEG',
+            accept: { [mime]: fmt === 'png' ? ['.png'] : ['.jpg', '.jpeg'] }
+          }]
+        });
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // l’utilisateur a annulé
+        handle = null;                              // repli : téléchargement classique
+      }
+    }
+
+    setBusy(true, 0);
+    setStatus('Export en cours…');
+    try {
+      await pause();                                // laisse l’interface se mettre à jour
+      const blob = await exportOne(file, fmt, mime, snap);
+      if (handle) {
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        setStatus('Image exportée : ' + handle.name);
+      } else {
+        downloadBlob(blob, suggested);
+        setStatus('Image exportée : ' + suggested + ' (dossier de téléchargements)');
+      }
+    } catch (e) {
+      reportError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Plusieurs images : dossier de destination au choix (Chrome, Edge, Opera),
+  // sinon un seul fichier ZIP téléchargé.
+  async function exportBatch(files, fmt, mime, ext, snap) {
+    let dirHandle = null;
+    if (canPickDir) {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // l’utilisateur a annulé
+        dirHandle = null;                           // repli : fichier ZIP
+      }
+    }
+
+    setBusy(true, files.length);
+    setStatus('Export en cours… 0 / ' + files.length);
+    const used = new Set();
+    const zipEntries = [];
+    const failed = [];
+    let exported = 0;
+
+    try {
+      await pause();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const blob = await exportOne(file, fmt, mime, snap);
+          if (dirHandle) {
+            const name = await uniqueNameInDir(dirHandle, baseName(file.name), ext, used);
+            const fh = await dirHandle.getFileHandle(name, { create: true });
+            const writable = await fh.createWritable();
+            await writable.write(blob);
+            await writable.close();
+          } else {
+            const name = uniqueName(baseName(file.name), ext, used);
+            zipEntries.push({ name: name, data: new Uint8Array(await blob.arrayBuffer()) });
+          }
+          exported++;
+        } catch (e) {
+          failed.push(file.name);
+        }
+        progressEl.value = i + 1;
+        setStatus('Export en cours… ' + (i + 1) + ' / ' + files.length);
+        await pause();
+      }
+
+      if (!dirHandle && zipEntries.length) {
+        downloadBlob(buildZip(zipEntries), 'images_grille.zip');
+      }
+
+      const parts = [];
+      if (exported > 0) {
+        if (dirHandle) {
+          parts.push(exported + (exported > 1 ? ' images exportées' : ' image exportée') +
+            ' dans « ' + dirHandle.name + ' »');
+        } else {
+          parts.push(exported + (exported > 1 ? ' images regroupées' : ' image regroupée') +
+            ' dans images_grille.zip (dossier de téléchargements)');
+        }
+      }
+      if (failed.length) {
+        const shown = failed.slice(0, 3).join(', ') + (failed.length > 3 ? '…' : '');
+        parts.push('Échec pour ' + failed.length + (failed.length > 1 ? ' images' : ' image') + ' : ' + shown);
+      }
+      setStatus(parts.join('. ') + '.', failed.length > 0);
+    } catch (e) {
+      reportError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function exportImage() {
+    if (!state.files.length || state.busy) return;
+    const files = state.files.slice();
+    const fmt = currentFormat();
+    const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
+    const ext = fmt === 'png' ? 'png' : 'jpg';
+    const snap = { s: settings(), ref: state.refWidth };   // réglages figés au moment du clic
+    // Les fenêtres de choix (fichier ou dossier) sont ouvertes sans attendre, dans le clic.
+    if (files.length === 1) return exportSingle(files[0], fmt, mime, ext, snap);
+    return exportBatch(files, fmt, mime, ext, snap);
+  }
+
+  // ---------- Événements ----------
+  [colsEl, rowsEl, thickEl, opacityEl, dxEl, dyEl].forEach((el) => {
+    el.addEventListener('input', () => { syncOutputs(); renderPreview(); });
+  });
+  outerEl.addEventListener('change', renderPreview);
+  doubleEl.addEventListener('change', () => {
+    offsetsEl.hidden = !doubleEl.checked;
+    renderPreview();
+  });
+
+  chooseBtn.addEventListener('click', () => fileInput.click());
+  chooseDirBtn.addEventListener('click', () => dirInput.click());
+  emptyBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const list = Array.from(fileInput.files || []);
+    fileInput.value = '';
+    if (list.length) loadFiles(list);
+  });
+  dirInput.addEventListener('change', () => {
+    const all = Array.from(dirInput.files || []);
+    dirInput.value = '';
+    // Seuls les fichiers placés directement dans le dossier choisi (pas les sous-dossiers).
+    const direct = all.filter((f) => !f.webkitRelativePath || f.webkitRelativePath.split('/').length === 2);
+    if (all.length) loadFiles(direct);
+  });
+  prevBtn.addEventListener('click', () => navigate(-1));
+  nextBtn.addEventListener('click', () => navigate(1));
+  exportBtn.addEventListener('click', exportImage);
+
+  // Glisser-déposer (fichiers ou dossiers)
+  stage.addEventListener('dragover', (e) => { e.preventDefault(); stage.classList.add('dragging'); });
+  stage.addEventListener('dragleave', () => stage.classList.remove('dragging'));
+  stage.addEventListener('drop', (e) => {
+    e.preventDefault();
+    stage.classList.remove('dragging');
+    if (state.busy) return;
+    filesFromDrop(e.dataTransfer).then((files) => { if (files.length) loadFiles(files); });
+  });
+  // Évite que le navigateur ouvre l’image si on la dépose à côté de la zone.
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
+  // Coller une image (Ctrl/⌘ + V)
+  window.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.kind === 'file' && /^image\//.test(it.type)) {
+        const f = it.getAsFile();
+        if (f && !state.busy) { e.preventDefault(); loadFiles([f]); }
+        break;
+      }
+    }
+  });
+
+  syncOutputs();
+})();
+</script>
+</body>
+</html>
