@@ -1,7 +1,4 @@
-<img src="bandeau.jpg" width="100%" alt="Quantum-Sense">
-![Uploading bandeau.jpg…]()
-
-
+Quantum-Sense
 
 [-> Prompt.Builder.Image.WebApp](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/IMAGES/raw/refs/heads/main/Prompt.Builder.Image.html)
 
