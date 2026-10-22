@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Atelier</title>
+<style>
+:root{--bg:#25272b;--panel:#2e3136;--line:#434850;--text:#ecebe7;--muted:#a3a8b0;--accent:#7fb2ff;--cell:#1c1d20;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;display:grid;grid-template-columns:292px 1fr}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+h1{font-size:18px;font-weight:650;margin:0;letter-spacing:-.01em}
+.panel{flex:1;display:flex;flex-direction:column;gap:18px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field>label,.field>.lbl{font-weight:550;font-size:13px}
+.row{display:flex;align-items:center;gap:10px}
+.row output{color:var(--muted);font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.note{color:var(--muted);font-size:13px;margin:0}
+select,button,input{font:inherit;color:inherit}
+select{background:var(--cell);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--cell);border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px}
+.seg button{background:none;border:0;border-radius:5px;padding:6px 8px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--line);color:var(--text)}
+input[type=range]{flex:1;accent-color:var(--accent)}
+input[type=color]{width:38px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+.btn{background:var(--cell);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;text-align:left}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#0f1b2e;font-weight:600}
+.btn.primary:hover:not(:disabled){filter:brightness(1.07)}
+.btn small{display:block;font-weight:400;opacity:.75;font-variant-numeric:tabular-nums}
+.bottom{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.times{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{display:flex;padding:32px;min-width:0;min-height:0;overflow:auto}
+.view{width:100%;display:flex;align-items:center;justify-content:center;margin:auto}
+#stage{--r:1.7778;width:min(100%,calc((100vh - 64px) * var(--r)));aspect-ratio:var(--r);display:grid;background:#000;box-shadow:0 0 0 1px var(--line)}
+.cell{position:relative;overflow:hidden;background:var(--cell);cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0}
+.cell.filled{background:var(--bgf,#000)}
+.cell img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;display:none}
+#stage[data-fit=contain] .cell img{object-fit:contain}
+.cell.filled img{display:block}
+.hint{color:var(--muted);text-align:center;padding:10px;pointer-events:none;font-size:13px}
+.cell.filled .hint{display:none}
+.rm{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(20,21,24,.78);color:#fff;font-size:17px;line-height:1;cursor:pointer;display:none}
+.cell.filled:hover .rm,.cell.filled:focus-within .rm{display:block}
+.cell.dragging{opacity:.4}
+.cell.over-swap::after,.cell.over-file::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 3px var(--accent);background:rgba(127,178,255,.16)}
+.drop{width:min(560px,100%);aspect-ratio:16/9;border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);cursor:pointer;padding:20px}
+.drop.over{border-color:var(--accent);background:rgba(127,178,255,.1);color:var(--text)}
+#cutCv{max-width:100%;max-height:calc(100vh - 64px);box-shadow:0 0 0 1px var(--line)}
+.palwrap{width:min(900px,100%);display:flex;flex-direction:column;gap:18px;align-items:stretch}
+#palImg{max-height:38vh;max-width:100%;object-fit:contain;align-self:center;border-radius:6px}
+#palBar{display:flex;height:44px;border-radius:8px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+#palList{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sw{border:0;border-radius:9px;padding:12px;min-height:84px;cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.sw b{font-size:15px}.sw span{font-size:12px;opacity:.85}
+input[type=text]{background:var(--cell);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%}
+.tabs{grid-auto-flow:row;grid-template-columns:repeat(3,1fr)}
+#frGrid{width:100%;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;align-content:start}
+.card{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);min-width:0}
+.card span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.th{position:relative;aspect-ratio:var(--tr);overflow:hidden;border-radius:6px;box-shadow:0 0 0 1px var(--line)}
+.th img{width:100%;height:100%;display:block}
+.th:hover .rm{display:block}
+#shCv{max-width:100%;max-height:calc(100vh - 64px);box-shadow:0 0 0 1px var(--line)}
+#shList{display:flex;flex-direction:column;gap:6px}
+.ri{display:grid;grid-template-columns:40px 1fr auto auto auto;gap:5px;align-items:center}
+.ri img{width:40px;height:28px;object-fit:cover;border-radius:4px}
+.ri input{padding:5px 7px}
+.ri button{background:var(--cell);border:1px solid var(--line);border-radius:5px;width:26px;height:26px;cursor:pointer;padding:0}
+#grCv{max-width:100%;max-height:calc(100vh - 64px);box-shadow:0 0 0 1px var(--line)}
+.chk{display:flex;align-items:center;gap:8px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.nav{display:flex;align-items:center;gap:8px}
+.nav span{flex:1;text-align:center;font-size:13px}
+.nav button{width:36px;text-align:center}
+#grInfo{word-break:break-all}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 16px;max-width:min(520px,90vw);opacity:0;pointer-events:none;transition:opacity .18s}
+#toast.show{opacity:1}
+@media (max-width:760px){body{grid-template-columns:1fr;grid-template-rows:auto 1fr}aside{border-right:0;border-bottom:1px solid var(--line)}}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+.pbwrap{width:min(900px,100%);display:flex;flex-direction:column;gap:14px}
+#pbOut{width:100%;min-height:52vh;background:var(--cell);border:1px solid var(--line);border-radius:10px;padding:16px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text);resize:vertical}
+#pbNotes{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:13px}
+#pbF{display:flex;flex-direction:column;gap:16px}
+.msi{position:relative}
+.msi input{padding-right:34px}
+.msi button{position:absolute;right:2px;top:2px;bottom:2px;width:30px;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:6px}
+.msb{display:none;margin-top:4px;max-height:210px;overflow:auto;background:var(--cell);border:1px solid var(--line);border-radius:8px;padding:4px 0}
+.ms.open .msb{display:block}
+.msb label{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+.msb label:hover{background:var(--line)}
+.msb input{accent-color:var(--accent)}
+#pbTip svg{display:block;width:110px;height:auto;margin-bottom:6px}
+#pbTip .tg{display:grid;grid-template-columns:repeat(2,118px);gap:8px;margin-top:8px}
+#pbTip .tg svg{width:100%;margin:0}#pbTip .tg span{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.3}
+.msi button.msp{position:static;width:100%;text-align:left;padding:7px 30px 7px 9px;background:var(--cell);border:1px solid var(--line);border-radius:7px;color:var(--text);position:relative}
+.msi button.msp::after{content:'▾';position:absolute;right:10px;color:var(--muted)}
+.msb label.sel{color:var(--accent)}
+#pbTip{position:fixed;z-index:50;display:none;max-width:300px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:12.5px;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.45);pointer-events:none}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Prompt Atelier</h1>
+  <section class="panel" data-p="prompt">
+    <p class="note">Assemble un prompt prêt à coller (en anglais) à partir de votre bibliothèque.</p>
+    <div class="field"><label for="pbT">Type de prompt</label><select id="pbT"></select></div>
+    <div id="pbF"></div>
+    <div class="bottom"><button class="btn primary" id="pbCopy" type="button">Copier le prompt</button>
+    <button class="btn" id="pbReset" type="button">Réinitialiser</button></div>
+  </section>
+</aside>
+<main>
+  <div class="view" data-p="prompt"><div class="pbwrap"><textarea id="pbOut" readonly aria-label="Prompt généré"></textarea><div id="pbNotes"></div></div></div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3800)}
+const onFiles={};
+['dragover','drop'].forEach(n=>document.addEventListener(n,e=>e.preventDefault()));
+/* ---------- 7. Constructeur de prompt ---------- */
+(()=>{
+const SH={"char13": "Using the provided reference image as the sole source of truth for the character, create a professional character reference sheet, divided vertically into three\nequal panels of the same height, side by side, separated by thin dark gray lines, on a plain neutral medium-gray studio backdrop. Vertical 3:2 overall format.\n-Left panel: tight close-up portrait of the character's head and face, from the top of the hair to the base of the neck, facing the camera straight on,\nneutral expression, eyes looking into the lens. Every facial feature, skin texture, hairstyle, hair color and accessory identical to the reference.\n-Center panel: full-length figure seen from the front, standing in a relaxed neutral pose, arms slightly away from the body, feet shoulder-width apart,\nframed from above the head position down to the shoes, with the same margins and scale as the right panel. The head is invisible, like an invisible-man\neffect limited to the head only: the collar and neck opening of the clothing are visible and empty, the plain gray studio backdrop is visible through the\nspace where the head and hair would be, and the rest of the body is fully visible. Exact same outfit, colors, fabrics, logos, accessories, footwear and\nbody proportions as the reference.\n-Right panel: full-length figure seen from directly behind, complete from head to shoes, face not visible. Same neutral standing pose, showing the back of\nthe head, the hairstyle and hair length from behind, the nape of the neck, and the back of the outfit with every rear detail (seams, pockets, straps,\nprints). Same outfit and proportions as the reference.\n-Consistency: the three panels show one and the same person, same outfit, same proportions, same lighting. The center and right figures have exactly the same\nheight, the same horizon line and the same foot position, so that the headless front view and the back view line up perfectly side by side.\n-Lighting: soft, even studio light, large softbox from the front, gentle fill, no dramatic shadows, so that every costume detail stays readable.\nLook: shot on a full-frame camera, 85mm lens for the portrait and 50mm for the bodies, sharp focus throughout, natural skin texture, fabric weave visible,\nsubtle film grain, true-to-life colors.\nClean reference sheet layout, no text, no labels, no captions.", "char14": "Photo real character reference sheet based on the attached reference image, neutral grey background.\nFour full-length vertical panels arranged left to right in a single mosaic image:\nfront view (head to feet), back view (head to feet), side profile view (head to feet), and a close-up on the face.\nSame character, same proportions, same costume and details as shown in the reference image, consistent across all four panels.\nClean even studio lighting, sharp focus, photorealistic.\nNo text, no labels, no borders, no dividing lines, no grid, no background environment.\nThe four panels should be the only content in the image, seamlessly placed side by side.", "char22": "Photo real character reference sheet - four views on a neutral grey background:\n[VIEW 1-FULL BODY, FRONT] Full-body front-facing three-quarter view of this character, full body visible head to feet.\n[VIEW 2-FULL BODY, REAR] Full-body rear view of the same character, directly from behind. Full body visible head to feet.\n[VIEW 3- FRONT CLOSE-UP] Head and shoulders close-up, straight-on front view. Sharp detail on skin texture, accessories, and costume surface detail. Chest and shoulder armour/clothing visible at the bottom of frame.\n[VIEW 4 - PROFILE CLOSE-UP] Head and shoulders close-up, 90-degree left profile view. Neck and upper shoulder visible.\nLighting & presentation: Clean studio lighting - soft key light upper left, gentle fill from the right. Cinematic photorealism, sharp focus across all views, shallow depth of field on background only. Consistent character identity, proportions, and costume details across all four views. No text, no watermarks, no extra figures, no background environment.", "veh": "Photo real vehicle reference sheet -\nfour views based on the attached reference image, neutral grey background :\nFront view, three-quarter perspective view, rear view, and side profile view of this spaceship,\nall four views placed together on the same seamless grey background,\nmatching the hull shape, materials, colors, and details shown in the reference image.\nSame scale and proportions maintained across all four views.\nLighting & presentation : Clean studio lighting, soft and even, no dramatic shadows.\nCinematic photorealism, sharp focus across all views.\nConsistent scale, proportions, materials, and design details across all four views, extrapolating any unseen areas logically from the reference image.\nNo text, no labels, no captions, no watermarks, no dividing lines, no borders, no frames, no grid, no background environment, no additional elements not implied by the reference.\nThe four views should be the only content in the image, arranged naturally with even spacing.", "loc": "Photo-real location reference sheet based on the attached reference image: four views of one single, identical physical location, shown together in one image in a 2x2 arrangement.\nThe four views:\n1. Wide-angle front view, matching the reference image's framing.\n2. Wide-angle reverse view, taken from the same spot, rotated exactly 180° from the front view.\n3. Close-up on the most distinctive surface or architectural detail of this location.\n4. Elevated three-quarter angle view of the whole location.\nAbsolute set consistency: all four views are photographs of the exact same set, on the same day, at the same moment. Every architectural element, structure, opening, prop, surface, texture, material, color, wear pattern, and proportion must be strictly identical from one view to the next. Any element visible in two views must appear in the same position, same size, same shape, and same condition. The reverse view and the elevated view must logically extrapolate unseen areas from what is visible in the reference, without inventing elements that contradict it. Do not change the style, era, or architectural language between views.\nLighting and atmosphere: same light direction, same time of day, same weather, same color temperature, same shadows, same color grading across all four views, matching the reference image exactly. Neutral, consistent lighting.\nRendering: cinematic photorealism, sharp focus across all views, consistent scale and proportions, consistent lens rendering and depth of field across the wide views.\nExclusions: no text, no labels, no captions, no watermarks, no dividing lines, no borders, no frames, no characters or figures, no vehicles, no additional elements not implied by the reference image.\nThe four views are the only content of the image, arranged naturally with even spacing."};
+const L={
+aspect:['16:9','2.39:1','21:9'],
+comp:['Rule of thirds','Golden Ratio','Fibonacci','Centered composition','Leading lines','Lead room','Negative space','Symmetry','Frame within a frame','Foreground framing (amorce)','Dutch angle','180 degree rule'],
+style:['Cinematic','Documentary','Contemporary commercial ad','Clean commercial look'],
+colors:['Teal and orange','Rust and Cyan','Natural colors palette','Muted colors palette','Subdued tones','Low saturation','Desaturated look','Desaturated palette','Low contrast','Soft shadows','Monochrome Low Contrast','Warm tones','Warm Sunset','Warm Vintage Film','Gold and Amber','Cyberpunk Warm / Neon Warm','Retro Sepia','Blue and Gold','Warm cinematic advertising color grade','Chiaroscuro lighting','Log / Flat Profile','Bleach bypass','Cross processing'],
+light:['Soft natural contrast','Motivated practical lighting','Rim lighting / Backlight','Cinematic lighting','Studio lighting','Softbox','Golden hour','High key lighting','Low key lighting','Chiaroscuro lighting','Dappled light','Volumetric lighting','Hazy sunlight','Soft light shafts','Sunbeams','Crepuscular rays','Morning mist rays','Dust motes in light','Tyndall effect','Caustic light patterns','Specular highlights','High refractive index','Subsurface scattering (SSS)','Gaseous / vaporous','Translucent fabrics','Swirling mist','Weightless / anti-gravity','Iridescent','Luminescent','Side lighting','Top lighting','Three-point lighting','Rembrandt lighting','Butterfly lighting','Under-lighting'],
+lens:['Panavision E-Series Anamorphic','Anamorphic oval bokeh lens','Cooke S4/i','Panavision C-Series','Prime Cooke Anamorphic','Angénieux Optimo','Zeiss Master Prime'],
+acam:['Panavision System 65mm','IMAX 70mm','Arriflex 765','Panavision Panaflex Millennium XL2','Aaton 35-III (low iso)'],
+stock:['Kodak Portra 400 (warm)','Fujifilm Pro 400H (bleu/vert)','Kodak Portra 160','Kodak Vision3 500T (nuit)'],
+ncam:['ARRI Alexa 65','ARRI Alexa Mini LF','ARRI Alexa LF','ARRI Alexa 35','Panavision Millennium DXL2 (action)','RED V-Raptor (action)','RED Monstro 8K','Sony Venice 3 (nocturne)','Sony Venice 2','Sony Venice'],
+dur:['4','6','8','10','15'],
+move:['Slow drift','Gentle panning','Weightless tracking shot','Gliding smoothly through the scene','Slow push-in','Rack focus','Whip pan transition','Handheld micro-movements']};
+L.tone=['Comedy','Intimacy','Feel Good','Playful','Joyful advertising','Emotional storytelling','Tense Confrontation','Mysterious'];
+L.focal=['Wide lens','35mm','50mm','85mm','100mm macro','Telephoto','Anamorphic 40mm'];
+L.fx=['Shallow depth of field','Donut bokeh','Swirly bokeh','Petzval effect','Blue anamorphic lens flare','Split diopter','Tilt-shift lens','Lensbaby effect','Lomo NAS-1 Soviet Anamorphic','Wollensak Verito soft focus','Bausch & Lomb Super Baltar','Petzval 1840 brass lens','Prism photography','Chandelier crystal flare','Prismatic dispersion / Spectral fringe','Subtle halation'];
+const DESC={"16:9": "Format écran large standard (télévision, YouTube).", "21:9": "Ultra-large cinémascope, très panoramique.", "2.39:1": "Format cinéma anamorphique classique.", "Rule of thirds": "Sujet placé sur les lignes de force du tiers de l’image : équilibré et naturel.", "Golden Ratio": "Proportion d’or : guide l’œil en spirale vers le détail le plus important, plus organique que les tiers.", "Fibonacci": "Spirale de Fibonacci : même logique que le nombre d’or, pour diriger le regard vers le point fort.", "Centered composition": "Sujet au centre du cadre : frontal, solennel, très lisible.", "Leading lines": "Lignes (routes, rails, murs) qui conduisent le regard vers le sujet.", "Lead room": "Espace laissé dans la direction du regard ou du mouvement : l’image respire et anticipe l’action.", "Negative space": "Grande zone vide autour du sujet pour souligner isolement, vulnérabilité ou immensité.", "Symmetry": "Effet miroir parfait : sensation d’ordre absolu, d’artifice ou d’obsession.", "Frame within a frame": "Sujet filmé à travers une porte, une fenêtre ou une arche : enfermement ou voyeurisme.", "Foreground framing (amorce)": "Élément souvent flou au premier plan (amorce) qui donne de la profondeur et de l’échelle.", "Dutch angle": "Caméra inclinée sur l’horizontale : tension, déséquilibre, malaise.", "180 degree rule": "Règle des 180° : la caméra reste du même côté de l’action pour garder des raccords cohérents.", "Cinematic": "Look cinéma : image travaillée, profondeur, lumière dramatique.", "Documentary": "Look documentaire : réaliste, sur le vif, peu mis en scène.", "Contemporary commercial ad": "Esthétique de publicité moderne : propre, soignée, séduisante.", "Clean commercial look": "Rendu commercial épuré : net, lumineux, sans éléments parasites.", "Comedy": "Ambiance comique, légère et expressive.", "Intimacy": "Ambiance intime : proximité, douceur, moments privés.", "Feel Good": "Ambiance positive, chaleureuse et réconfortante.", "Playful": "Ambiance joueuse, espiègle, pleine d’énergie.", "Joyful advertising": "Joie de publicité : sourires, couleurs vives, enthousiasme.", "Emotional storytelling": "Narration émotionnelle : l’image raconte un moment touchant.", "Tense Confrontation": "Face-à-face tendu, conflit prêt à éclater.", "Mysterious": "Ambiance mystérieuse : zones d’ombre, questions sans réponse.", "Teal and orange": "Duo classique du cinéma : peaux orangées sur fond bleu-vert.", "Rust and Cyan": "Alternative au teal & orange : rouille, terre cuite et bleu acier.", "Natural colors palette": "Couleurs fidèles à la réalité, sans dominante chaude ou froide, contraste équilibré.", "Muted colors palette": "Couleurs désaturées et adoucies, léger aspect mat.", "Subdued tones": "Couleurs contenues, assombries : plus feutré et sobre que « muted ».", "Low saturation": "Saturation faible : couleurs pâles et retenues.", "Desaturated look": "Rendu globalement délavé, proche du noir et blanc.", "Desaturated palette": "Baisse de saturation appliquée à la grille de couleurs de la scène.", "Low contrast": "Noirs grisés et blancs ternes : rendu plat, laiteux ou brumeux.", "Soft shadows": "Ombres douces et peu marquées.", "Monochrome Low Contrast": "Nuances de gris neutres très douces, sans noirs profonds.", "Warm tones": "Dominante chaude : jaunes, oranges, rouges.", "Warm Sunset": "Magenta, orange vif et violet doux : lumière intense de fin de journée.", "Warm Vintage Film": "Teintes jaunes et rouges, noirs adoucis : très beau en portrait.", "Gold and Amber": "Tons dorés et ambrés : heure dorée ou ambiance vintage.", "Cyberpunk Warm / Neon Warm": "Rouge néon, orange brûlé et jaune : futuriste et nocturne.", "Retro Sepia": "Bruns, beiges et ocres : rendu ancien ou nostalgique.", "Blue and Gold": "Duo bleu profond et or : élégant, contrasté.", "Warm cinematic advertising color grade": "Étalonnage publicitaire chaud et flatteur.", "Chiaroscuro lighting": "Fort contraste entre ombres profondes et lumières ciblées.", "Log / Flat Profile": "Ombres décollées et hautes lumières adoucies : simule un fichier brut prêt pour l’étalonnage.", "Bleach bypass": "Désaturé, contraste élevé, aspect métallique et sec.", "Cross processing": "Couleurs détournées, dominantes vertes ou jaunes, contraste marqué.", "Soft natural contrast": "Lumière naturelle douce, contraste modéré.", "Motivated practical lighting": "La lumière vient d’éléments visibles dans le décor (lampes, néons, phares).", "Rim lighting / Backlight": "Lumière derrière le sujet : contour lumineux qui le détache du fond.", "Cinematic lighting": "Terme générique qui aide à structurer une lumière de cinéma.", "Studio lighting": "Éclairage de studio maîtrisé et propre.", "Softbox": "Lumière douce et diffuse.", "Golden hour": "Lumière chaude et rasante du lever ou du coucher du soleil.", "High key lighting": "Image très lumineuse, peu d’ombres, ambiance claire.", "Low key lighting": "Image sombre avec peu de lumière : dramatique, ombres dominantes.", "Dappled light": "Lumière tachetée à travers les feuilles d’un arbre.", "Volumetric lighting": "La lumière a du volume car elle traverse des particules (brume, poussière).", "Hazy sunlight": "Soleil rendu visible par une légère brume ou l’humidité.", "Soft light shafts": "Colonnes de lumière subtiles et diffuses dans la brume ou la poussière.", "Sunbeams": "Rayons de soleil simples, sans effet dramatique.", "Crepuscular rays": "Rayons crépusculaires : faisceaux à travers les nuages.", "Morning mist rays": "Rayons dans la brume du matin : look frais et naturel.", "Dust motes in light": "Grains de poussière qui dansent dans un rayon de lumière.", "Tyndall effect": "Poussière illuminée dans une pièce sombre : faisceau très précis.", "Caustic light patterns": "Motifs de lumière dansants projetés quand la lumière traverse l’eau, le verre ou le cristal.", "Specular highlights": "Points de brillance extrême et micro-éclats blancs sur les arêtes.", "High refractive index": "Indice de réfraction élevé du cristal lourd : la lumière dévie très fort.", "Subsurface scattering (SSS)": "La lumière s’infiltre sous la surface d’un matériau translucide : profondeur organique.", "Gaseous / vaporous": "Substance qui ressemble à un gaz ou une vapeur, sans contours nets.", "Translucent fabrics": "Voiles et tissus légers qui laissent passer la lumière.", "Swirling mist": "Brume qui tourbillonne : volume et mouvement dans l’air.", "Weightless / anti-gravity": "Sensation d’apesanteur.", "Iridescent": "Couleurs qui changent selon l’angle de vue (bulle de savon, nacre).", "Luminescent": "La matière semble émettre sa propre lumière douce.", "Side lighting": "Lumière latérale : relief et texture marqués.", "Top lighting": "Lumière venue du dessus.", "Three-point lighting": "Classique : principale, d’appoint et contre-jour.", "Rembrandt lighting": "Triangle de lumière sur la joue côté ombre : portrait dramatique.", "Butterfly lighting": "Lumière frontale haute, ombre en papillon sous le nez : glamour.", "Under-lighting": "Lumière venue d’en bas : inquiétant, fantastique.", "Panavision E-Series Anamorphic": "Look scope, flares horizontaux.", "Anamorphic oval bokeh lens": "Optique anamorphique : bokeh ovale caractéristique.", "Cooke S4/i": "Doux, chaleureux, peaux flatteuses.", "Panavision C-Series": "Anamorphique classique.", "Prime Cooke Anamorphic": "Look scope, bokeh ovale.", "Angénieux Optimo": "Zoom cinéma polyvalent.", "Zeiss Master Prime": "Net, propre, moderne.", "Wide lens": "Champ large, espace, déformation de proximité.", "35mm": "Naturel, documentaire.", "50mm": "Intime, perspective humaine.", "85mm": "Portrait, arrière-plan compressé.", "100mm macro": "Texture, détail.", "Telephoto": "Téléobjectif : arrière-plan compressé.", "Anamorphic 40mm": "Format large cinéma.", "Shallow depth of field": "Force un flou d’arrière-plan prononcé pour détacher le sujet.", "Donut bokeh": "Flou d’arrière-plan en petits anneaux lumineux, propre aux téléobjectifs à miroir.", "Swirly bokeh": "Flou d’arrière-plan où les lumières s’enroulent en spirale autour du sujet.", "Petzval effect": "Netteté au centre et flou en spirale sur les bords.", "Blue anamorphic lens flare": "Trait de lumière bleu horizontal typique des objectifs anamorphiques.", "Split diopter": "Demi-filtre : deux zones nettes à des distances opposées (sujet proche et arrière-plan).", "Tilt-shift lens": "Incline le plan de netteté : effet « miniature » ou perspective corrigée.", "Lensbaby effect": "Optique créative : zone nette limitée, flou et déformation sur les bords.", "Lomo NAS-1 Soviet Anamorphic": "Anamorphique soviétique vintage : bokeh très étiré, déformations organiques.", "Wollensak Verito soft focus": "Aberration sphérique : halo poétique autour des lumières, contours précis.", "Bausch & Lomb Super Baltar": "Optique hollywoodienne des années 1960 (Le Parrain) : visages doux, reflets chauds.", "Petzval 1840 brass lens": "Optique en laiton du XIXᵉ siècle : centre net, flou en spirale très marqué sur les bords.", "Prism photography": "Prisme devant l’objectif : scène dédoublée, arcs-en-ciel naturels.", "Chandelier crystal flare": "Pampilles de cristal devant la lentille : étincelles et éclats polychromes.", "Prismatic dispersion / Spectral fringe": "Lumière blanche décomposée en arc-en-ciel au passage des arêtes du cristal.", "Subtle halation": "Léger halo rouge-orangé autour des lumières intenses, typique de la pellicule.", "Panavision System 65mm": "Grand format 65 mm : image ample, détaillée, très cinéma.", "IMAX 70mm": "Format IMAX 70 mm : immensité et définition extrêmes.", "Arriflex 765": "Caméra 65 mm Arri : grande finesse, rendu premium.", "Panavision Panaflex Millennium XL2": "Caméra 35 mm de référence : rendu cinéma classique.", "Aaton 35-III": "Caméra 35 mm compacte, grain doux (faible ISO).", "Kodak Portra 400": "Peaux douces et tons chauds, couleurs pastel.", "Fujifilm Pro 400H": "Dominantes bleu-vert, tons frais et délicats.", "Kodak Portra 160": "Tons de peau très doux, couleurs pastel.", "Kodak Vision3 500T": "Pellicule cinéma tungstène : idéale de nuit, grain organique.", "ARRI Alexa 65": "Capteur grand format : image riche, peaux naturelles.", "ARRI Alexa Mini LF": "Grand format compact : rendu Alexa et grande souplesse.", "ARRI Alexa LF": "Capteur grand format Arri.", "ARRI Alexa 35": "Dernière génération Alexa : latitude et couleurs très naturelles.", "Panavision Millennium DXL2": "Capteur RED sous optiques Panavision : idéal pour l’action.", "RED V-Raptor": "Capteur RED haute résolution : image nette, action.", "RED Monstro 8K": "Capteur grand format 8K : détail extrême.", "Sony Venice 3": "Excellente en basse lumière : parfaite pour les scènes nocturnes.", "Sony Venice 2": "Cinéma numérique Sony : peaux fidèles, grande sensibilité.", "Sony Venice": "Cinéma numérique Sony plein format.", "Slow drift": "Dérive lente et presque imperceptible.", "Gentle panning": "Panoramique doux de gauche à droite.", "Weightless tracking shot": "Travelling flottant, sans à-coup.", "Gliding smoothly through the scene": "Glissement fluide à travers la scène.", "Slow push-in": "Avancée lente vers le sujet : attention croissante.", "Rack focus": "Changement de point entre deux plans : déplace l’attention.", "Whip pan transition": "Panoramique fouetté : transition rapide, énergique.", "Handheld micro-movements": "Petits mouvements d’épaule : vie et réalisme.", "4": "Clip court de 4 secondes.", "6": "Clip de 6 secondes.", "8": "Clip de 8 secondes.", "10": "Clip de 10 secondes.", "15": "Clip de 15 secondes.", "Cinematic shot": "Plan cinéma générique, laissé au choix du générateur.", "Establishing Shot": "Personnage minuscule dans le décor : établit le lieu.", "Extreme Wide Shot": "Plan très large : décor immense, sujet infime.", "Wide Shot": "Personnage en entier avec beaucoup de décor autour.", "Long Shot": "Décor encore dominant, personnages bien identifiables.", "Full Shot": "Personnage filmé de la tête aux pieds.", "American Shot": "Plan américain : coupé à mi-cuisse (cow-boy).", "Medium Shot": "Plan moyen coupé à la taille : le plus courant dans les dialogues.", "Medium Close-Up": "Plan rapproché poitrine : proximité émotionnelle.", "Two-shot": "Deux personnages dans le cadre : montre leur relation.", "Extreme Close-Up": "Très gros plan sur un détail (œil, bouche…).", "Close-Up": "Gros plan : le visage remplit le cadre, capte l’émotion.", "Insert Shot": "Très gros plan narratif sur un objet (montre, couteau…).", "Eye-level shot": "Caméra à hauteur des yeux : perspective neutre.", "High-angle shot": "Plongée : caméra au-dessus, regard vers le bas.", "Low-angle shot": "Contre-plongée : caméra en dessous, regard vers le haut.", "Bird's-eye view": "Vue d’oiseau, directement à la verticale.", "Overhead shot": "Caméra directement au-dessus du sujet (top down).", "Worm's-eye view": "Angle extrêmement bas : perspective dramatique.", "Ground-level shot": "Caméra au ras du sol.", "Knee-level shot": "Caméra à hauteur de genoux.", "Hip-level shot": "Caméra à hauteur de hanches.", "Frontal shot": "Sujet face à la caméra.", "Three-quarter profile": "Visage tourné d’environ 45° par rapport à la caméra.", "Full profile shot": "Profil complet à 90°.", "Rear view shot": "Sujet vu de dos.", "Over-the-shoulder shot (OTS)": "Caméra derrière l’épaule d’un personnage.", "Heroic Perspective": "Vue héroïque, en contre-plongée : le sujet paraît puissant.", "Shoulder-level tracking angle": "Caméra en mouvement à hauteur d’épaule.", "Subjective camera angle": "Variante immersive du point de vue du personnage.", "First-person view (fpv)": "Caméra dans les yeux du personnage, comme dans un jeu vidéo.", "god's eye aerial view": "Vue aérienne zénithale, comme vue du ciel.", "low angle heroic perspective": "Contre-plongée héroïque : le sujet domine le cadre.", "dynamic action": "Plan d’action dynamique, en mouvement.", "macro extreme detail with a shallow depth of field": "Macro sur un détail extrême, avec très peu de netteté autour.", "wide angle": "Grand angle : large champ, perspective accentuée.", "frontal shot": "Plan frontal, sujet face caméra.", "three-quarter profile": "Visage de trois quarts.", "over-the-shoulder shot": "Plan par-dessus l’épaule.", "wide lens frontal shot looking at the camera": "Plan frontal au grand angle, regard dans la caméra.", "frontal shot facing the camera": "Plan frontal, sujet face à la caméra.", "close-up frontal shot facing the camera": "Gros plan frontal, sujet face à la caméra.", "medium-range frontal shot facing the camera": "Plan moyen frontal, sujet face à la caméra.", "long-range frontal shot facing the camera": "Plan large frontal, sujet face à la caméra.", "extreme long-range frontal shot facing the camera": "Plan très large frontal, sujet face à la caméra.", "high-angle shot": "Plongée : caméra au-dessus, regard vers le bas.", "worm's-eye view": "Angle extrêmement bas : perspective dramatique.", "low-angle shot": "Contre-plongée : caméra en dessous, regard vers le haut.", "ultra close-up cinematic action": "Action cinématographique en très gros plan.", "high-angle fpv shot": "Plongée en vue FPV (caméra embarquée).", "worm's-eye view fpv shot": "Vue FPV depuis le sol, très bas.", "dynamic action dutch angle fpv shot": "Action dynamique, caméra FPV inclinée (angle hollandais).", "ultra close-up fpv shot": "Très gros plan en vue FPV.", "cinematic action dynamic fpv shot": "Action cinématographique, FPV dynamique.", "fpv shot dynamic action dutch angle": "Action dynamique en FPV, angle hollandais.", "fpv ultra close-up low-angle shot": "Très gros plan FPV en contre-plongée."};
+const CAD=['Establishing Shot','Extreme Wide Shot','Wide Shot','Long Shot','Full Shot','American Shot','Medium Shot','Medium Close-Up','Two-shot','Extreme Close-Up','Close-Up','Insert Shot','Eye-level shot','High-angle shot','Low-angle shot',"Bird's-eye view",'Overhead shot',"Worm's-eye view",'Ground-level shot','Knee-level shot','Hip-level shot','Frontal shot','Three-quarter profile','Full profile shot','Rear view shot','Over-the-shoulder shot (OTS)','Dutch angle','Heroic Perspective','Shoulder-level tracking angle','Subjective camera angle','First-person view (fpv)'];
+const x4=s=>[s,s,s,s];
+const PH={'Cinematic shot (défaut)':'Quatre plans génériques, laissés au choix du générateur.','General 1':'Polyvalent : vue aérienne, contre-plongée héroïque, action, macro.','General 2':'Polyvalent : plongée, contre-plongée, ras du sol, action.','Paysages':'Pour les décors et les paysages.','Personnages 1':'Un personnage sous plusieurs angles.','Personnages 2 (portraits) ++':'Portraits frontaux, regard dans la caméra.','Face caméra 3':'Même sujet face caméra, à quatre distances.','Dynamic actions':'Quatre plans d’action dynamique.','Cinematic actions ultra close-up':'Quatre très gros plans d’action.','FPV':'Vues embarquées FPV variées.','Cinematic action dynamic FPV':'Quatre plans d’action en FPV.','Stylised':'FPV stylisé : plongée, contre-plongée, angle hollandais.'};
+const PRE={'Cinematic shot (défaut)':x4('Cinematic shot'),
+'General 1':["god's eye aerial view",'low angle heroic perspective','dynamic action','macro extreme detail with a shallow depth of field'],
+'General 2':['high-angle shot',"worm's-eye view",'dynamic action','low-angle shot'],
+'Paysages':["god's eye aerial view",'high-angle shot','high-angle shot','wide angle'],
+'Personnages 1':['low angle heroic perspective','frontal shot','three-quarter profile','over-the-shoulder shot'],
+'Personnages 2 (portraits) ++':['wide lens frontal shot looking at the camera','wide lens frontal shot looking at the camera','frontal shot facing the camera','frontal shot facing the camera'],
+'Face caméra 3':['close-up frontal shot facing the camera','medium-range frontal shot facing the camera','long-range frontal shot facing the camera','extreme long-range frontal shot facing the camera'],
+'Dynamic actions':x4('dynamic action'),'Cinematic actions ultra close-up':x4('ultra close-up cinematic action'),
+'FPV':['high-angle fpv shot',"worm's-eye view fpv shot",'dynamic action dutch angle fpv shot','ultra close-up fpv shot'],
+'Cinematic action dynamic FPV':x4('cinematic action dynamic fpv shot'),
+'Stylised':['high-angle fpv shot',"worm's-eye view fpv shot",'fpv shot dynamic action dutch angle','fpv ultra close-up low-angle shot']};
+const ANG=[...new Set(['Cinematic shot',...CAD,...Object.values(PRE).flat()])];
+const F=[['theme','Thème','t','ex. la pêche au lever du jour'],['action','Action','t','ex. un skateur franchit une rampe de nuit'],
+['subj','Sujet','t','ex. une montre posée sur du bois'],['s1','Temps 1 : installation','t','état physique 1'],['s2','Temps 2 : mouvement','t','état physique 2'],
+['s3','Temps 3 : climax','t','état physique 3'],['s4','Temps 4 : résolution','t','état physique 4'],['veh','Véhicule (en anglais)','t','','spaceship'],
+['prod','Produit (en anglais)','t','ex. perfume bottle'],['preset','Angles : préréglage','p',Object.keys(PRE)],['a1','Case 1 (haut gauche)','c',ANG],['a2','Case 2 (haut droite)','c',ANG],['a3','Case 3 (bas gauche)','c',ANG],['a4','Case 4 (bas droite)','c',ANG],['aspect','Format','c',0,L.aspect[0]],['comp','Composition','c',0,'Rule of thirds'],
+['style','Style','c',0,'Cinematic'],['tone','Mood','c',0,'Feel Good'],['colors','Couleurs','c',0,'Natural colors palette'],['light','Lumière','c',0,'Cinematic lighting'],['lens','Optique','c',0,'Anamorphic oval bokeh lens'],['focal','Focale','c',0,'85mm'],['fx','Effet optique','c'],['mode','Rendu','m'],['acam','Caméra / format','c',0,L.acam[0]],['stock','Pellicule','c',0,L.stock[0]],
+['ncam','Capteur','c',0,L.ncam[0]],['move','Mouvement de caméra','c',0,'Slow drift'],['dur','Durée (secondes)','c',0,L.dur[0]],['pacing','Rythme','t','','slow build-up, sharp climax, gentle resolution'],
+['mood','Mood','t','','Cinematic, High-Octane, Epic'],['genre','Genre','t','','B-Roll, Feature Film, Large Format Photography']];
+const lc=s=>s.toLowerCase(),art=s=>/^[aeiou]/i.test(s)?'an':'a';
+const AN=v=>v.mode==='ANALOG';
+const RB=v=>AN(v)?`Organic film grain. Shot on ${v.acam}, ${v.stock}, Subtle halation on highlights.`:'Ultra-photorealistic, blending the visual polish of a premium Netflix realism and a blockbuster film aesthetic. Shot on '+v.ncam+'.';
+const opt=x=>x==='(aucun)'?'':x;
+const TN=v=>v.tone?', '+v.tone+' mood':'';
+const LG=v=>v.light||'Cinematic lighting';
+const LT=v=>v.light.split(', ').filter(x=>x&&x!=='Cinematic lighting');
+const LN=v=>[v.lens,opt(v.focal),opt(v.fx)].filter(Boolean).join(', ');
+const NO='No text, No subtitles, No score, no on-screen text, no additional logos.';
+const J=a=>a.join('\n');
+const VSTY=v=>AN(v)?`${v.acam}, ${v.stock}, film grain preserved`:`${v.ncam}, clean digital sensor`;
+const VEO=(v,a)=>{const an=AN(v);return J(['[IMAGE REFERENCE: 2x2 mosaic — top-left = Shot 1 | top-right = Shot 2 | bottom-left = Shot 3 | bottom-right = Shot 4]',
+`Shot 1: Source TOP-LEFT. Anamorphic camera with intense ${an?'':'digital '}motion blur at the midpoint, instantly locking razor-sharp on the subject at the final frame.`,
+`Shot 2: Source TOP-RIGHT. High-speed camera smash zoom toward the subject, decelerating instantly into ${an?'super slow-motion':'ultra-smooth high-frame-rate slow-motion'}.`,
+'Shot 3: Source BOTTOM-LEFT. Fast FPV drone dive toward the subject with a violent Dutch angle, aggressive handheld shake, sudden short freeze frame, then a snap cut.',
+'Shot 4: Source BOTTOM-RIGHT. Rapid flash cut sequence of 3 ultra-fast extreme close-up detail inserts, resolving into a final wide shot.',
+an?`Overall Style: Shot on 35mm motion picture film, ${v.stock}, Panavision anamorphic lenses, photorealistic, natural skin textures, organic imperfections, shallow depth of field, volumetric lighting, film halation, subtle chromatic aberration, and micro-scratches.\nNo CGI, no digital look, no 3D render. No subtitles, no text.\nColor grade: Cinematic ${lc(v.colors)} color grade`
+:`Overall Style: Shot on ${v.ncam} digital cinema camera, modern anamorphic prime lenses, photorealistic, pristine digital sensor rendering, natural skin textures, razor-sharp details, cinematic ${lc(v.colors)} color grade, shallow depth of field, clean low-light performance, and volumetric lighting. High-end digital cinematography look. No film grain, no micro-scratches, no CGI, no 3D render look. No subtitles, no text.`,
+'Cut style: Hard smash cuts only, no dissolves, no transitions','Mood: '+v.mood,'Genre: '+v.genre,'Action: '+v.action+'.'])};
+const T={
+base:{g:'Image',n:'Image prompt',f:['subj','aspect','comp','colors','light','lens','focal','fx','mode'],r:['subj'],fn:v=>J([v.subj+'.',
+`Cinematography: sharp focus on subject, shallow depth of field with creamy background ${/oval bokeh/i.test(v.lens)?'':'anamorphic oval bokeh, '}${LN(v)}, Subtle optical halation on highlights. ${v.comp}, Aspect ratio ${v.aspect}, No text.`,
+`Natural skin texture, A cinematic color grade of ${lc(v.colors)}, Cinematic lighting${LT(v).map(x=>', '+x).join('')}. Subtle halation on highlights.`,RB(v)])},
+mosaic:{g:'Image',n:'Mosaïque 2x2 (thème)',f:['theme','preset','a1','a2','a3','a4','aspect','comp','style','tone','colors','light','lens','focal','fx','mode'],r:['theme'],fn:v=>{const md=opt(v.tone);return J([
+`A 4-panel ${v.style}${md?', '+md:''} photo mosaic presented in a widescreen Aspect ratio ${v.aspect}, ${v.comp}`,`displaying four distinct photographs illustrating the ${v.theme}.`,
+`The composition is ${art(v.style)} ${v.style} style, A cinematic color grade of ${lc(v.colors)} is applied consistently across all panels,`,
+'Cinematography: shallow depth of field with creamy background anamorphic bokeh, Cinematic lighting'+LT(v).map(x=>', '+x).join('')+', Natural skin texture, Subtle halation on highlights,','physical cine lens, 180° shutter motion blur,',
+'The four panels showcase varied camera angles and perspectives related to the theme:',`(1) ${v.a1}, (2) ${v.a2}, (3) ${v.a3}, and (4) ${v.a4}.`,LN(v)+'.',
+AN(v)?`Shot on ${v.acam}, ${v.stock}.`:`Ultra-photorealistic, blending the visual polish of a premium Netflix realism and a blockbuster film aesthetic.\nShot on ${v.ncam}.`,
+NO,'No soundtrack, No singing or humming, No music'])}},
+story:{g:'Image',n:'Storyboard chronologique (action)',f:['action','s1','s2','s3','s4','aspect','comp','style','tone','colors','light','lens','focal','fx','mode'],r:['action','s1','s2','s3','s4'],fn:v=>J([
+'A photorealistic 4-panel documentary photograph storyboard (arranged in a 2x2 grid),',`presented as a widescreen mosaic in a ${v.aspect} aspect ratio, ${v.comp}.`,
+`designed to illustrate a single, continuous, sequential action: ${v.action}.`,'The panels read chronologically from top-left to top-right, then bottom-left to bottom-right (like a comic strip),',
+`The entire image has ${art(v.style)} ${v.style} style${TN(v)},`,`A cinematic color grade of ${lc(v.colors)} is applied consistently across all panels,`,
+'Seamless visual continuity between all panels (same subject, same lighting, same environment).',
+`Panel 1 (Top Left): ${v.s1} — Wide shot establishing the scene.`,`Panel 2 (Top Right): ${v.s2} — Medium shot capturing the peak movement.`,
+`Panel 3 (Bottom Left): ${v.s3} — Close-up on reaction/impact.`,`Panel 4 (Bottom Right): ${v.s4} — Insert shot.`,
+'No text, no dialogue, no SFX, no CGI, no 3D render, no digital look.','Shallow depth of field, Anamorphic oval bokeh lens, Cinematic lighting, Natural skin texture, Subtle halation on highlights,',
+'Only photographic realism with natural imperfections.',LG(v)+'. '+LN(v)+'.',RB(v)])},
+frozen:{g:'Image',n:'Frozen instant (4 caméras)',f:['action','style','tone','colors'],r:['action'],fn:v=>J([
+`A photorealistic 4-panel documentary mosaic (2x2 grid) capturing the exact same frozen instant of ${v.action}, shown simultaneously from four different camera angles — as if captured by multiple cameras at the same split-second, like a bullet-time or multi-rig sports photography effect.`,
+'The subject, pose, lighting, and environment remain perfectly identical across all four panels — only the camera position and angle change.','Presented as a widescreen mosaic in 16:9 aspect ratio,',
+`ultra-photorealistic ${v.style} style${TN(v)}, blending Netflix ${v.style} polish with realism and blockbuster film aesthetic.`,
+`A cinematic color grade of ${lc(v.colors)} is applied consistently across all panels, with volumetric cinematic lighting and natural film grain.`,'High dynamic range, dramatic tension, frozen-moment intensity.',
+'Panel 1 (Top Left): Wide establishing angle — full scene, subject and environment visible','Panel 2 (Top Right): Low-angle heroic perspective — same instant, camera below subject looking up',
+'Panel 3 (Bottom Left): Close-up on face/reaction — same instant, tight framing on expression or key detail','Panel 4 (Bottom Right): Extreme side/profile or overhead angle — same instant, contrasting viewpoint',
+'No text, no CGI, no 3D render, no digital look. Only photographic realism with natural imperfections.','Look Argentique : Analog photography look, film emulation, raw photo.',`Style: ${v.style}`])},
+char13:{g:'Planches (image de référence)',n:'Personnage 1x3 sans visage',f:[],fn:()=>SH.char13},
+char14:{g:'Planches (image de référence)',n:'Personnage 1x4 ++',f:[],fn:()=>SH.char14},
+char22:{g:'Planches (image de référence)',n:'Personnage 2x2',f:[],fn:()=>SH.char22},
+veh:{g:'Planches (image de référence)',n:'Véhicule',f:['veh'],r:['veh'],fn:v=>SH.veh.replace(/spaceship/g,v.veh)},
+loc:{g:'Planches (image de référence)',n:'Lieu (4 vues)',f:[],fn:()=>SH.loc},
+prod:{g:'Planches (image de référence)',n:'Produit',f:['prod'],r:['prod'],fn:v=>J(['Using the provided reference image as the sole source of truth for the product,',`Make a product sheet with front and 3/4 perspective views of the ${v.prod}, Photo real, neutral grey background`])},
+smooth:{g:'Vidéo (depuis une mosaïque)',n:'SMOOTHLY : plan continu',f:['colors','mode','dur','pacing'],fn:v=>J([
+'Animate this sequence as a continuous cinematic shot, transitioning smoothly between the four framings shown:','starting with the wide establishing view, moving into the medium action shot, pushing into the close-up reaction,','then pulling back to the final resolution.',
+`Maintain the same subject, lighting, environment, and ${lc(v.colors)} color grade throughout.`,'Camera movement: smooth dolly/push-in transitions, natural handheld micro-movements, no jump cuts.',
+'Motion: subtle, physically realistic, matching the natural weight and momentum of the subject.',`Style: cinematic, photorealistic, ${VSTY(v)} look, shallow depth of field, no CGI artifacts, no morphing distortion.`,
+`Duration: ${v.dur} seconds — pacing: ${v.pacing}.`,'No text, no voice, no music.'])},
+cut:{g:'Vidéo (depuis une mosaïque)',n:'CUT : montage nerveux',f:['colors','mode','dur'],fn:v=>J([
+'Generate a multishot video sequence from this 4-panel reference image, using each panel as a distinct shot in a fast-paced dynamic-cut edit.',
+'Preserve strict continuity of action across all shots: the sequence must read as one uninterrupted action progressing logically from Panel 1 through Panel 4, even though each shot is a separate camera angle.',
+`Maintain identical subject, lighting, environment, and ${lc(v.colors)} color grade across every cut.`,'Within each shot: subtle, physically realistic motion matching the natural weight and momentum of the subject.',
+'Editing rhythm: sharp, punchy hard cuts, accelerating pace toward the climax (Panel 3), brief hold on the resolution (Panel 4).',
+`Style: cinematic, photorealistic, ${VSTY(v)}, shallow depth of field.`,`Duration: ${v.dur} seconds.`,'No text, no voice, no music.'])},
+veo:{g:'Vidéo (depuis une mosaïque)',n:'Veo 3.1 : 4 plans (smash zoom, FPV)',f:['action','colors','mode','mood','genre'],r:['action'],fn:v=>VEO(v)},
+robot:{g:'Vidéo (depuis une image)',n:'ROBOT-ARM : caméra mécanique',f:['subj','mode'],r:['subj'],fn:v=>J([
+`The camera acts like a robot-arm: it throws itself to a new point around the ${v.subj}, fast flight along a smooth arc, a dead stop, another flight.`,
+'Points from different sides and heights, every stop a distinct frame. Zero drift at the stops.',`On the last one, freeze in front of the ${v.subj} until the end.`,RB(v),'No text, no voice, no music.'])},
+i2v:{g:'Vidéo (depuis une image)',n:'Image fixe → un seul plan',f:['subj','action','move','lens','light','mode','dur'],r:['subj','action'],fn:v=>J([
+`${v.subj}. Camera: ${v.move}. Lens/optics: ${v.lens}.`,`Light: ${LG(v)}. Motion in frame: ${v.action}.`,`${RB(v)} Duration: ${v.dur} seconds. No text, no voice, no music.`])}};
+
+/* ---- pictogrammes d'angles (schémas SVG) ---- */
+const PC='#7fb2ff',PG='#a3a8b0';let pu=0;
+const sv=b=>`<svg viewBox="0 0 80 56" fill="none" stroke="${PG}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${b}</svg>`;
+const man=(x,y,k)=>`<circle cx="${x}" cy="${y}" r="${5*k}"/><path d="M${x} ${y+5*k}v${16*k}M${x-8*k} ${y+9*k}h${16*k}M${x} ${y+21*k}l${-6*k} ${16*k}M${x} ${y+21*k}l${6*k} ${16*k}"/>`;
+const frm=(inner,rot)=>{const id='pk'+(pu++);return `<defs><clipPath id="${id}"><rect x="6" y="4" width="68" height="48"/></clipPath></defs><g${rot?` transform="translate(40 28) rotate(${rot}) scale(.86) translate(-40 -28)"`:''}><g clip-path="url(#${id})">${inner}</g><rect x="6" y="4" width="68" height="48" rx="3"/></g>`};
+const cam=(cx,cy,tx,ty)=>`<path d="M${cx} ${cy}L${tx} ${ty}" stroke-dasharray="3 3"/><rect x="${cx-5}" y="${cy-3.5}" width="10" height="7" rx="1.5" stroke="${PC}"/>`;
+const sideV=(cx,cy)=>sv(man(62,12,.8)+cam(cx,cy,62,17));
+const topV=a=>{const ca=Math.cos(a),sa=Math.sin(a);return sv(`<circle cx="40" cy="22" r="7"/><path d="M${40+ca*7-sa*5} ${22+sa*7+ca*5}L${40+ca*15} ${22+sa*15}L${40+ca*7+sa*5} ${22+sa*7-ca*5}" stroke="${PC}"/>`+cam(40,49,40,31))};
+const SZ=[[/extreme long|extreme wide|establishing/,.22],[/extreme close|ultra close|macro|insert/,0],[/medium close/,2.8],[/american/,1.35],[/medium|two-shot/,1.9],[/full shot/,.95],[/long|wide/,.45],[/close/,4.2]];
+const pic=name=>{const n=String(name).toLowerCase();let m;
+ if(/worm/.test(n))return sideV(14,50);if(/ground/.test(n))return sideV(14,48);if(/knee/.test(n))return sideV(14,35);if(/hip/.test(n))return sideV(14,28);
+ if(/bird|god|overhead|aerial|top down/.test(n))return sv(man(62,26,.7)+cam(62,5,62,24));if(/high-angle|high angle/.test(n))return sideV(14,5);if(/low-angle|low angle|heroic/.test(n))return sideV(14,44);if(/eye-level/.test(n))return sideV(14,17);
+ if(/three-quarter/.test(n))return topV(Math.PI/4);if(/profile/.test(n))return topV(0);if(/rear/.test(n))return topV(-Math.PI/2);
+ if(/over-the-shoulder/.test(n))return sv(`<circle cx="40" cy="14" r="6"/><path d="M40 20v6" /><circle cx="40" cy="38" r="8"/>`+cam(40,51,40,20));
+ if(/frontal|facing/.test(n)&&!/close|medium|long|wide/.test(n))return topV(Math.PI/2);
+ if(/dutch/.test(n))return sv(frm(man(40,14,.9),-12));
+ if(/fpv|first-person|subjective/.test(n))return sv(`<ellipse cx="40" cy="28" rx="26" ry="14"/><circle cx="40" cy="28" r="7" stroke="${PC}"/><circle cx="40" cy="28" r="2.5" fill="${PC}"/>`);
+ if(/tracking/.test(n))return sv(man(26,9,.9)+`<path d="M44 28h26m-6-4l6 4-6 4" stroke="${PC}"/>`);
+ if(/dynamic action/.test(n))return sv(man(48,10,.9)+`<path d="M12 18h18M8 28h20M12 38h18" stroke="${PC}"/>`);
+ for(const [re,k] of SZ)if(m=re.test(n)){if(!k)return sv(frm(`<ellipse cx="40" cy="28" rx="26" ry="14"/><circle cx="40" cy="28" r="8" stroke="${PC}"/>`));
+  const y=k<1?46-37*k:k<1.5?8:k<2?5:k<3?10:22;return sv(frm(man(40,y,k)))}
+ return /cinematic shot/.test(n)?sv(frm(man(40,5,1.9))):''};
+const NEEDS_IMG=['char13','char14','char22','veh','loc','prod','robot','i2v'],NEEDS_MOS=['smooth','cut','veo'];
+let cur='mosaic',mode='NUMERIC';const els={},wrap={};
+const pbT=$('#pbT'),pbF=$('#pbF'),pbOut=$('#pbOut'),pbN=$('#pbNotes');
+const groups={};Object.entries(T).forEach(([k,t])=>{(groups[t.g]=groups[t.g]||[]).push(k)});
+Object.entries(groups).forEach(([g,ks])=>{const og=document.createElement('optgroup');og.label=g;ks.forEach(k=>og.append(new Option(T[k].n,k)));pbT.append(og)});
+F.forEach(([k,label,kind,x,def])=>{const w=document.createElement('div');w.className='field';w.dataset.k=k;
+ if(kind==='m'){w.innerHTML='<span class="lbl">'+label+'</span><div class="seg"><button type="button" data-m="ANALOG" aria-pressed="false">Analogique</button><button type="button" data-m="NUMERIC" aria-pressed="true">Numérique</button></div>';
+  w.querySelectorAll('button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;w.querySelectorAll('button').forEach(y=>y.setAttribute('aria-pressed',y===b));gen()})}
+ else{const id='pb_'+k;const lb=document.createElement('label');lb.htmlFor=id;lb.textContent=label;let e;
+  if(kind==='t'){e=document.createElement('input');e.type='text';e.placeholder=x||'';e.value=def||''}
+  else if(kind==='p'){e=document.createElement('div');e.className='ms';let cp=x[0];
+   const wi=document.createElement('div'),bt=document.createElement('button'),box=document.createElement('div');wi.className='msi';bt.type='button';bt.className='msp';box.className='msb';
+   const set=v=>{cp=v;bt.textContent=v;[...box.children].forEach(l=>l.classList.toggle('sel',l.dataset.pre===v))};
+   x.forEach(o=>{const l=document.createElement('label');l.dataset.pre=o;l.textContent=o;l.onclick=()=>{set(o);e.classList.remove('open');e.dispatchEvent(new Event('change',{bubbles:true}))};box.append(l)});
+   bt.onclick=()=>e.classList.toggle('open');e.set=set;e.reset=()=>set(x[0]);wi.append(bt);e.append(wi,box);set(x[0]);
+   Object.defineProperty(e,'value',{get:()=>cp})}
+  else if(kind==='c'){e=document.createElement('div');e.className='ms';
+   const opts=Array.isArray(x)?x:L[k],box=document.createElement('div'),wi=document.createElement('div'),inp=document.createElement('input'),ar=document.createElement('button'),cks=[];
+   const strip=['acam','stock','ncam'].includes(k)?(o=>o.replace(/ \([^)]*\)$/,'')):(o=>o);
+   const tok=()=>inp.value.split(',').map(t=>t.trim()).filter(Boolean);
+   const sync=()=>{const t=tok();cks.forEach(([o,c])=>{c.checked=t.includes(o)})};
+   inp.type='text';inp.autocomplete='off';inp.placeholder='Écrire ou choisir…';ar.type='button';ar.textContent='▾';ar.title='Afficher la liste';
+   wi.className='msi';wi.append(inp,ar);box.className='msb';
+   opts.forEach(o=>{const lb=document.createElement('label'),c=document.createElement('input');c.type='checkbox';
+    c.onchange=()=>{const t=tok().filter(y=>y!==o);if(c.checked)t.push(o);inp.value=t.join(', ')};
+    const dd=DESC[o]||DESC[o.replace(/ \([^)]*\)$/,'')];if(dd)lb.dataset.tip=dd;lb.append(c,document.createTextNode(o));box.append(lb);cks.push([o,c])});
+   const open=v=>e.classList.toggle('open',v);
+   inp.oninput=sync;inp.onfocus=()=>open(true);ar.onclick=()=>open();
+   e.set=v=>{inp.value=Array.isArray(v)?v.join(', '):(v||'');sync()};
+   e.reset=()=>e.set(def);e.append(wi,box);e.set(def);
+   Object.defineProperty(e,'value',{get:()=>tok().map(t=>opts.includes(t)?strip(t):t).join(', ')})}
+  else{e=document.createElement('select');(Array.isArray(x)?x:L[k]).forEach(o=>e.add(new Option(o,o)));if(def)e.value=def}
+  e.id=id;els[k]=e;w.append(lb,e)}
+ wrap[k]=w;pbF.append(w)});
+const FB={aspect:'16:9',comp:'Rule of thirds',style:'Cinematic',colors:'Natural colors palette',lens:'Anamorphic oval bokeh lens',move:'Slow drift',dur:'4',acam:L.acam[0].replace(/ \([^)]*\)$/,''),stock:L.stock[0].replace(/ \([^)]*\)$/,''),ncam:L.ncam[0],a1:'Cinematic shot',a2:'Cinematic shot',a3:'Cinematic shot',a4:'Cinematic shot'};
+const V=()=>{const v={mode};for(const k in els)v[k]=els[k].value;for(const k in FB)if(!v[k].trim())v[k]=FB[k];return v};
+function gen(){const t=T[cur],v=V(),notes=[];
+ const f=new Set(t.f);if(f.has('mode')){f.add(AN(v)?'acam':'ncam');if(AN(v))f.add('stock')}
+ F.forEach(([k])=>wrap[k].hidden=!f.has(k));
+ const label=k=>F.find(a=>a[0]===k)[1];
+ (t.r||[]).forEach(k=>{if(!v[k].trim()){v[k]='['+label(k).split(' (')[0].toUpperCase()+']';notes.push('À remplir : '+label(k)+'.')}});
+ pbOut.value=t.fn(v);
+ if(NEEDS_IMG.includes(cur))notes.push('Joindre l’image de référence au générateur.');
+ if(NEEDS_MOS.includes(cur))notes.push('À utiliser avec une mosaïque 2x2 déjà générée (haut-gauche = plan 1, bas-droite = plan 4).');
+ if(cur==='veo')notes.push('Veo 3.1 : réglez la durée (4, 6 ou 8 s ; 8 s pour 1080p/4K) hors du prompt. 4 plans en 8 s ≈ 2 s par plan.');
+ if(f.has('stock')&&v.stock.includes('500T'))notes.push('Vision3 500T est une pellicule tungstène : à réserver à la nuit ou à la lumière artificielle.');
+ if(cur==='frozen')notes.push('Fidèle à votre template : « Muted colors » est retiré car il contredit un grade coloré (teal and orange…). Le look « Netflix polish » + « Look Argentique » est conservé tel quel.');
+ if(['mosaic','story','base'].includes(cur)&&/Muted|Desaturated|Low saturation|Subdued/.test(v.colors)&&/Chiaroscuro|Soft natural/.test(v.light||''))notes.push('Palette désaturée + lumière contrastée : à arbitrer.');
+ pbN.replaceChildren(...notes.map(n=>{const d=document.createElement('div');d.textContent=n;return d}));}
+const setP=()=>PRE[els.preset.value].forEach((x,i)=>els['a'+(i+1)].set(x));
+pbT.onchange=()=>{cur=pbT.value;gen()};pbF.addEventListener('change',e=>{if(e.target===els.preset)setP()});pbF.addEventListener('input',gen);pbF.addEventListener('change',gen);
+$('#pbCopy').onclick=async()=>{const t=pbOut.value;try{await navigator.clipboard.writeText(t)}catch(e){pbOut.select();document.execCommand('copy')}toast('Prompt copié')};
+onFiles.prompt=()=>{};
+const tip=document.createElement('div');tip.id='pbTip';tip.setAttribute('role','tooltip');document.body.append(tip);let tipFor=null;
+const hideTip=()=>{tip.style.display='none';tipFor=null};
+document.addEventListener('mouseover',ev=>{const l=ev.target.closest&&ev.target.closest('.msb label[data-tip],.msb label[data-pre]');if(!l){hideTip();return}
+ if(l===tipFor)return;tipFor=l;if(l.dataset.pre){const p=l.dataset.pre,g=document.createElement('div'),tx=document.createElement('div');g.className='tg';tx.textContent=PH[p]||'';
+  PRE[p].forEach((a,i)=>{const c=document.createElement('div');c.innerHTML=pic(a);const sp=document.createElement('span');sp.textContent=(i+1)+' · '+a;c.append(sp);g.append(c)});tip.replaceChildren(tx,g)}
+ else{const pc=l.closest('#pb_a1,#pb_a2,#pb_a3,#pb_a4')?pic(l.textContent):'';tip.innerHTML=pc;const tx=document.createElement('div');tx.textContent=l.dataset.tip;tip.append(tx)}tip.style.display='block';
+ const r=l.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;let x=r.right+12;if(x+w>innerWidth-8)x=Math.max(8,r.left-w-12);
+ tip.style.left=x+'px';tip.style.top=Math.max(8,Math.min(r.top,innerHeight-h-8))+'px'});
+document.addEventListener('scroll',hideTip,true);document.addEventListener('keydown',ev=>{if(ev.key==='Escape')hideTip()});
+$('#pbReset').onclick=()=>{F.forEach(([k,,kind,,def])=>{const e=els[k];if(!e)return;if(e.reset)e.reset();else if(kind==='t')e.value=def||'';else if(kind==='s')e.value=def||e.options[0].value});
+ mode='NUMERIC';wrap.mode.querySelectorAll('button').forEach(y=>y.setAttribute('aria-pressed',y.dataset.m===mode));setP();gen();toast('Réglages réinitialisés')};
+document.addEventListener('click',ev=>$$('.ms.open').forEach(d=>{if(!d.contains(ev.target))d.classList.remove('open')}));
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')$$('.ms.open').forEach(d=>d.classList.remove('open'))});
+setP();pbT.value=cur;gen();
+})();
+
+})();
+</script>
+</body>
+</html>
