@@ -1,6 +1,10 @@
-[-> Prompt.Builder.Image.WebApp](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/IMAGES/raw/refs/heads/main/Prompt.Builder.Image.html)
+WEBAPP
 
-[-> Grille.WebApp](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/Grille/blob/main/Grille.html)
+[-> Image.Compressor](https://html-preview.github.io/?url=html](https://github.com/Quantum-Sense-YT/IMAGES/blob/main/Image%20Compressor.html))
 
-[-> Atelier.Images.WebApp](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/IMAGES/blob/main/Atelier.Images.html)
+[-> Prompt.Builder.Image](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/IMAGES/raw/refs/heads/main/Prompt.Builder.Image.html)
+
+[-> Grille](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/Grille/blob/main/Grille.html)
+
+[-> Atelier.Images](https://html-preview.github.io/?url=https://github.com/hiphoprnblp/IMAGES/blob/main/Atelier.Images.html)
 
